@@ -2,6 +2,7 @@ import re
 import tkinter as tk
 from tkinter import ttk, messagebox
 from matplotlib.ticker import FuncFormatter
+from matplotlib.patches import Circle
 import math
 
 try:
@@ -26,6 +27,7 @@ MIN_RADIUS = 5000
 GRID_STEP = 1000
 CLIPBOARD_CHECK_MS = 100
 ARROW_LENGTH = 500
+RANGE_RADIUS = 512
 
 TP_PATTERN = re.compile(
     r'/execute\s+in\s+(?P<dimension>\S+)\s+run\s+tp\s+@s\s+'
@@ -54,6 +56,7 @@ class CoordinatePlotter:
         self.points = []
         self.undo_stack = []
         self.redo_stack = []
+        self.show_range = False
 
         self.last_clipboard = None
         self.monitoring = True
@@ -91,7 +94,15 @@ class CoordinatePlotter:
             text='Reset',
             command=self.reset,
             width=8
-        ).pack(side=tk.LEFT, padx=(0, 15))
+        ).pack(side=tk.LEFT, padx=(0, 5))
+
+        self.range_button = ttk.Button(
+            top,
+            text='Range: Off',
+            command=self.toggle_range,
+            width=10
+        )
+        self.range_button.pack(side=tk.LEFT, padx=(0, 15))
 
         self.status_var = tk.StringVar()
         ttk.Label(
@@ -247,6 +258,15 @@ class CoordinatePlotter:
             f'Redo: X={point['x']:.0f}, Z={point['z']:.0f}'
         )
 
+    def toggle_range(self):
+        self.show_range = not self.show_range
+
+        self.range_button.configure(
+            text='Range: On' if self.show_range else 'Range: Off'
+        )
+
+        self._redraw()
+
     def reset(self):
         if not self.points:
             self.status_var.set('No plots to reset')
@@ -381,6 +401,21 @@ class CoordinatePlotter:
         self.ax.xaxis.set_label_position('top')
         # self.ax.set_xlabel('X')
         # self.ax.set_ylabel('Z')
+
+        # Draw a 512-block radius around every plotted point.
+        if self.show_range:
+            for point in self.points:
+                self.ax.add_patch(
+                    Circle(
+                        (point['x'], point['z']),
+                        RANGE_RADIUS,
+                        facecolor='C0',
+                        edgecolor='C0',
+                        alpha=0.18,
+                        linewidth=1.0,
+                        zorder=2
+                    )
+                )
 
         # Draw every point.
         for index, point in enumerate(self.points, start=1):
