@@ -1,2 +1,5 @@
-matplotlib
 pyperclip
+matplotlib
+fastapi
+uvicorn[standard]
+websocket-client
