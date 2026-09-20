@@ -145,7 +145,7 @@ class CoordinatePlotter:
             'yaw': yaw,
             'pitch': pitch,
             'source': text,
-        }
+    }
         self._add_point(point)
 
     def _add_point(self, point, send_to_room=True):

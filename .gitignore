@@ -5,3 +5,4 @@ coords-visualizer.spec
 /app/.coords_visualizer_client_id
 /app/coords-visualizer.json
 /app/__pycache__
+build.txt

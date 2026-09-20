@@ -279,9 +279,24 @@ async def room_websocket(websocket: WebSocket):
 
 
 def run_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT):
-    uvicorn.run(app, host=host, port=port, log_level="warning")
+    config = uvicorn.Config(
+        app,
+        host=host,
+        port=port,
+        log_level="warning",
+        access_log=False,
 
+        log_config=None,
 
+        loop="asyncio",
+        http="h11",
+        ws="websockets",
+        lifespan="off",
+    )
+
+    server = uvicorn.Server(config)
+    server.run()
+            
 def start_server_in_background(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT):
     thread = threading.Thread(target=run_server, args=(host, port), daemon=True)
     thread.start()
