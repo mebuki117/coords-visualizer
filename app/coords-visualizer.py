@@ -59,6 +59,7 @@ class CoordinatePlotter:
         self.redo_stack = []
         self.show_range = False
         self.last_clipboard = None
+        self.temporary_point_id = None
         self.monitoring = True
         self.room_client = None
         self.room_events = queue.Queue()
@@ -119,18 +120,32 @@ class CoordinatePlotter:
             text = ''
         if text and text != self.last_clipboard:
             self.last_clipboard = text
+            # A temporary Nether plot only remains until the next clipboard copy.
+            self._remove_temporary_point()
             self._process_clipboard(text)
         self.root.after(CLIPBOARD_CHECK_MS, self._check_clipboard)
+
+    def _remove_temporary_point(self):
+        if self.temporary_point_id is None:
+            return
+        self.points = [
+            point for point in self.points
+            if point.get('id') != self.temporary_point_id
+        ]
+        self.temporary_point_id = None
+        self._redraw()
 
     def _process_clipboard(self, text):
         text = text.strip()
         match = TP_PATTERN.fullmatch(text)
         if not match:
             return
-        dimension = match.group('dimension')
-        if dimension.lower() != 'minecraft:overworld':
-            self.status_var.set(f'ignore: {dimension} (not overworld)')
+
+        dimension = match.group('dimension').lower()
+        if dimension not in ('minecraft:overworld', 'minecraft:the_nether'):
+            self.status_var.set(f'ignore: {dimension} (unsupported dimension)')
             return
+
         x = float(match.group('x'))
         z = float(match.group('z'))
         yaw = float(match.group('yaw'))
@@ -138,6 +153,13 @@ class CoordinatePlotter:
         if pitch <= 0:
             self.status_var.set(f'ignore: pitch={pitch:.2f} (0 or below)')
             return
+
+        is_nether = dimension == 'minecraft:the_nether'
+        if is_nether:
+            # Convert Nether coordinates to their Overworld-equivalent coordinates.
+            x *= 8
+            z *= 8
+
         point = {
             'id': uuid.uuid4().hex,
             'x': x,
@@ -145,8 +167,16 @@ class CoordinatePlotter:
             'yaw': yaw,
             'pitch': pitch,
             'source': text,
-    }
-        self._add_point(point)
+            'temporary': is_nether,
+        }
+
+        # Nether plots are local and temporary; they are not shared with the room.
+        self._add_point(point, send_to_room=not is_nether)
+        if is_nether:
+            self.temporary_point_id = point['id']
+            self.status_var.set(
+                f'Temporary Nether plot: X={x:.0f}, Z={z:.0f} (×8; removed on next copy)'
+            )
 
     def _add_point(self, point, send_to_room=True):
         self.points.append(point)
